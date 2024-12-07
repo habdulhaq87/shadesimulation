@@ -1,7 +1,6 @@
 streamlit
-pvlib
-matplotlib
 numpy
 pandas
-shapely
-ephem
+pvlib
+trimesh
+plotly
