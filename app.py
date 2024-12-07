@@ -5,6 +5,7 @@ from datetime import datetime
 import pandas as pd
 import pvlib
 from shapely.geometry import Polygon, Point
+from pvlib.location import Location
 
 # Set app configuration
 st.set_page_config(page_title="Building Shade Simulator", layout="wide")
@@ -23,9 +24,29 @@ building_length = 20  # Meters
 building_width = 10   # Meters
 building_height = 4   # Meters
 
-# Date and time input
+# Date input
 selected_date = st.date_input("Select Date", datetime(2024, 1, 15))
-selected_time = st.time_input("Select Time", datetime.now().time())
+
+# Calculate sunrise and sunset for the selected date
+location = Location(latitude=latitude, longitude=longitude, tz=timezone, altitude=elevation)
+sun_times = location.get_sun_rise_set_transit(selected_date)
+sunrise = sun_times['sunrise']
+sunset = sun_times['sunset']
+
+# Determine default time (midpoint between sunrise and sunset)
+if sunrise is not pd.NaT and sunset is not pd.NaT:
+    default_time = sunrise + (sunset - sunrise) / 2
+    default_time_str = default_time.strftime("%H:%M:%S")
+else:
+    default_time = datetime.now()
+    default_time_str = "N/A"
+
+st.write(f"**Sunrise**: {sunrise.strftime('%H:%M:%S') if sunrise is not pd.NaT else 'N/A'}")
+st.write(f"**Sunset**: {sunset.strftime('%H:%M:%S') if sunset is not pd.NaT else 'N/A'}")
+st.write(f"**Suggested Time (Midday)**: {default_time_str}")
+
+# Time input with default as midday
+selected_time = st.time_input("Select Time", default_time.time())
 
 # Combine date and time into pandas DatetimeIndex with timezone
 selected_datetime = pd.DatetimeIndex([datetime.combine(selected_date, selected_time)]).tz_localize(timezone)
