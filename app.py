@@ -11,7 +11,7 @@ from pvlib.location import Location
 st.set_page_config(page_title="Building Shade Simulator", layout="wide")
 
 # Title
-st.title("Building Shade Simulation (3D with Custom Model)")
+st.title("Building Shade Simulation (3D with Custom Model and Rotation)")
 st.subheader("Location: Iraq Kurdistan, Winter Season")
 
 # User input
@@ -86,7 +86,30 @@ try:
     else:
         raise ValueError("Unsupported 3D model format.")
 
-    # Get mesh vertices and faces
+    # Rotation controls
+    st.sidebar.subheader("Model Rotation Controls")
+    rotation_x = st.sidebar.slider("Rotate X-axis (degrees)", -180, 180, 0)
+    rotation_y = st.sidebar.slider("Rotate Y-axis (degrees)", -180, 180, 0)
+    rotation_z = st.sidebar.slider("Rotate Z-axis (degrees)", -180, 180, 0)
+
+    # Apply rotations to the mesh
+    rotation_matrix_x = trimesh.transformations.rotation_matrix(
+        np.radians(rotation_x), [1, 0, 0]
+    )
+    rotation_matrix_y = trimesh.transformations.rotation_matrix(
+        np.radians(rotation_y), [0, 1, 0]
+    )
+    rotation_matrix_z = trimesh.transformations.rotation_matrix(
+        np.radians(rotation_z), [0, 0, 1]
+    )
+
+    # Combine rotations
+    rotation_matrix = trimesh.transformations.concatenate_matrices(
+        rotation_matrix_x, rotation_matrix_y, rotation_matrix_z
+    )
+    mesh.apply_transform(rotation_matrix)
+
+    # Get rotated vertices and faces
     vertices = mesh.vertices
     faces = mesh.faces
 
@@ -141,7 +164,7 @@ try:
                 yaxis_title="Y (meters)",
                 zaxis_title="Z (meters)",
             ),
-            title="3D Shading Simulation with Custom Model"
+            title="3D Shading Simulation with Custom Model and Rotation"
         )
         st.plotly_chart(fig)
     else:
