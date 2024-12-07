@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime, time
 import pandas as pd
 import pvlib
-from shapely.geometry import Polygon, Point
 from pvlib.location import Location
 
 # Set app configuration
@@ -27,19 +26,19 @@ building_height = 4   # Meters
 # Date input
 selected_date = st.date_input("Select Date", datetime(2024, 1, 15).date())
 
-# Convert selected_date to a timezone-aware DatetimeIndex
-date_with_timezone = pd.date_range(start=selected_date, periods=1, freq="D", tz=timezone)
+# Convert selected_date to a timezone-aware pandas.Timestamp
+selected_date_timestamp = pd.Timestamp(selected_date).tz_localize(timezone)
 
 # Define the location
 location = Location(latitude=latitude, longitude=longitude, tz=timezone, altitude=elevation)
 
 # Calculate sunrise and sunset
-sun_times = location.get_sun_rise_set_transit(date_with_timezone[0])
+sun_times = location.get_sun_rise_set_transit(selected_date_timestamp)
 sunrise = sun_times['sunrise']
 sunset = sun_times['sunset']
 
 # Determine default time (midpoint between sunrise and sunset)
-if not sunrise.isna() and not sunset.isna():
+if pd.notna(sunrise) and pd.notna(sunset):
     default_time = sunrise + (sunset - sunrise) / 2
     default_time_str = default_time.strftime("%H:%M:%S")
 else:
@@ -47,21 +46,21 @@ else:
     default_time_str = "N/A"
 
 # Display sunrise, sunset, and suggested time
-st.write(f"**Sunrise**: {sunrise.strftime('%H:%M:%S') if not sunrise.isna() else 'N/A'}")
-st.write(f"**Sunset**: {sunset.strftime('%H:%M:%S') if not sunset.isna() else 'N/A'}")
+st.write(f"**Sunrise**: {sunrise.strftime('%H:%M:%S') if pd.notna(sunrise) else 'N/A'}")
+st.write(f"**Sunset**: {sunset.strftime('%H:%M:%S') if pd.notna(sunset) else 'N/A'}")
 st.write(f"**Suggested Time (Midday)**: {default_time_str}")
 
 # Time input with default as midday
 selected_time = st.time_input("Select Time", default_time.time())
 
-# Combine date and time into pandas DatetimeIndex with timezone
-selected_datetime = pd.DatetimeIndex(
-    [datetime.combine(selected_date, selected_time)]
+# Combine date and time into pandas.Timestamp with timezone
+selected_datetime = pd.Timestamp(
+    datetime.combine(selected_date, selected_time)
 ).tz_localize(timezone)
 
 # Calculate solar position
 solpos = pvlib.solarposition.get_solarposition(
-    time=selected_datetime,
+    time=[selected_datetime],
     latitude=latitude,
     longitude=longitude,
     altitude=elevation
