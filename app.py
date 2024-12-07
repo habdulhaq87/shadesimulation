@@ -1,9 +1,9 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from datetime import datetime
 import pandas as pd
+import trimesh
+import plotly.graph_objects as go
+from datetime import datetime
 import pvlib
 from pvlib.location import Location
 
@@ -11,7 +11,7 @@ from pvlib.location import Location
 st.set_page_config(page_title="Building Shade Simulator", layout="wide")
 
 # Title
-st.title("Building Shade Simulation (3D)")
+st.title("Building Shade Simulation (3D with Custom Model)")
 st.subheader("Location: Iraq Kurdistan, Winter Season")
 
 # User input
@@ -19,10 +19,6 @@ latitude = 36.7
 longitude = 44.0
 timezone = "Asia/Baghdad"
 elevation = 0  # Elevation above sea level (meters)
-
-building_length = 20  # Meters
-building_width = 10   # Meters
-building_height = 4   # Meters
 
 # Date input
 selected_date = st.date_input("Select Date", datetime(2024, 1, 15).date())
@@ -75,72 +71,74 @@ solar_azimuth = solpos['azimuth'].iloc[0]
 st.write(f"**Solar Altitude**: {solar_altitude:.2f}°")
 st.write(f"**Solar Azimuth**: {solar_azimuth:.2f}°")
 
-# Check if the sun is above the horizon
-if solar_altitude > 0:
-    # Shade calculation
-    shadow_length = building_height / np.tan(np.radians(solar_altitude))
-    
-    # Calculate shadow geometry
-    shadow_direction = solar_azimuth + 180 if solar_azimuth < 180 else solar_azimuth - 180
-    shadow_dx = shadow_length * np.sin(np.radians(shadow_direction))
-    shadow_dy = shadow_length * np.cos(np.radians(shadow_direction))
-    
-    # Building coordinates
-    building_vertices = [
-        [0, 0, 0], [building_length, 0, 0], [building_length, building_width, 0], [0, building_width, 0],  # Base
-        [0, 0, building_height], [building_length, 0, building_height],
-        [building_length, building_width, building_height], [0, building_width, building_height]  # Top
-    ]
+# Load the 3D model
+model_path = "data/waj.obj"
+try:
+    model = trimesh.load(model_path)
 
-    # Shadow coordinates on the ground
-    shadow_vertices = [
-        [building_length / 2, building_width / 2, 0],
-        [building_length / 2 + shadow_dx, building_width / 2 + shadow_dy, 0]
-    ]
+    # Get model vertices and faces
+    vertices = model.vertices
+    faces = model.faces
 
-    # Plot the results in 3D
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
+    # Adjust shadow length based on solar altitude
+    if solar_altitude > 0:
+        shadow_length = 10 / np.tan(np.radians(solar_altitude))  # Scale for visualization
+        
+        # Calculate shadow direction
+        shadow_direction = solar_azimuth + 180 if solar_azimuth < 180 else solar_azimuth - 180
+        shadow_dx = shadow_length * np.sin(np.radians(shadow_direction))
+        shadow_dy = shadow_length * np.cos(np.radians(shadow_direction))
 
-    # Plot building
-    for i in range(4):  # Connect base to top
-        ax.plot(
-            [building_vertices[i][0], building_vertices[i + 4][0]],
-            [building_vertices[i][1], building_vertices[i + 4][1]],
-            [building_vertices[i][2], building_vertices[i + 4][2]],
-            color='blue'
+        # Create shadow vertices
+        shadow_vertices = vertices.copy()
+        shadow_vertices[:, 0] += shadow_dx
+        shadow_vertices[:, 1] += shadow_dy
+        shadow_vertices[:, 2] = 0  # Project onto the ground
+
+        # Visualize the model and shadow using Plotly
+        fig = go.Figure()
+
+        # Add the 3D model
+        fig.add_trace(go.Mesh3d(
+            x=vertices[:, 0],
+            y=vertices[:, 1],
+            z=vertices[:, 2],
+            i=faces[:, 0],
+            j=faces[:, 1],
+            k=faces[:, 2],
+            color='blue',
+            opacity=0.5,
+            name="Building"
+        ))
+
+        # Add the shadow
+        fig.add_trace(go.Mesh3d(
+            x=shadow_vertices[:, 0],
+            y=shadow_vertices[:, 1],
+            z=shadow_vertices[:, 2],
+            i=faces[:, 0],
+            j=faces[:, 1],
+            k=faces[:, 2],
+            color='gray',
+            opacity=0.3,
+            name="Shadow"
+        ))
+
+        # Set layout for 3D plot
+        fig.update_layout(
+            scene=dict(
+                xaxis_title="X (meters)",
+                yaxis_title="Y (meters)",
+                zaxis_title="Z (meters)",
+            ),
+            title="3D Shading Simulation with Custom Model"
         )
-    ax.plot(
-        [building_vertices[0][0], building_vertices[1][0], building_vertices[2][0], building_vertices[3][0], building_vertices[0][0]],
-        [building_vertices[0][1], building_vertices[1][1], building_vertices[2][1], building_vertices[3][1], building_vertices[0][1]],
-        [building_vertices[0][2], building_vertices[1][2], building_vertices[2][2], building_vertices[3][2], building_vertices[0][2]],
-        color='blue'
-    )  # Base
-    ax.plot(
-        [building_vertices[4][0], building_vertices[5][0], building_vertices[6][0], building_vertices[7][0], building_vertices[4][0]],
-        [building_vertices[4][1], building_vertices[5][1], building_vertices[6][1], building_vertices[7][1], building_vertices[4][1]],
-        [building_vertices[4][2], building_vertices[5][2], building_vertices[6][2], building_vertices[7][2], building_vertices[4][2]],
-        color='blue'
-    )  # Top
+        st.plotly_chart(fig)
+    else:
+        st.warning("The sun is below the horizon. No shadow is visible.")
 
-    # Plot shadow
-    ax.plot(
-        [shadow_vertices[0][0], shadow_vertices[1][0]],
-        [shadow_vertices[0][1], shadow_vertices[1][1]],
-        [shadow_vertices[0][2], shadow_vertices[1][2]],
-        color='gray',
-        label="Shadow"
-    )
-
-    # Set labels and title
-    ax.set_xlabel("X (meters)")
-    ax.set_ylabel("Y (meters)")
-    ax.set_zlabel("Z (meters)")
-    ax.set_title("3D Shading Simulation")
-    ax.legend()
-    st.pyplot(fig)
-else:
-    st.warning("The sun is below the horizon. No shadow is visible.")
+except Exception as e:
+    st.error(f"Error loading 3D model: {e}")
 
 # Footer
 st.write("---")
