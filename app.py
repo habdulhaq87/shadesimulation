@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime, time
+from datetime import datetime
 import pandas as pd
 import pvlib
 from pvlib.location import Location
@@ -26,16 +26,16 @@ building_height = 4   # Meters
 # Date input
 selected_date = st.date_input("Select Date", datetime(2024, 1, 15).date())
 
-# Convert selected_date to a timezone-aware pandas.Timestamp
-selected_date_timestamp = pd.Timestamp(selected_date).tz_localize(timezone)
+# Create a timezone-aware DatetimeIndex for the selected date
+date_with_timezone = pd.date_range(start=selected_date, periods=1, freq="D", tz=timezone)
 
 # Define the location
 location = Location(latitude=latitude, longitude=longitude, tz=timezone, altitude=elevation)
 
 # Calculate sunrise and sunset
-sun_times = location.get_sun_rise_set_transit(selected_date_timestamp)
-sunrise = sun_times['sunrise']
-sunset = sun_times['sunset']
+sun_times = location.get_sun_rise_set_transit(date_with_timezone)
+sunrise = sun_times['sunrise'].iloc[0]
+sunset = sun_times['sunset'].iloc[0]
 
 # Determine default time (midpoint between sunrise and sunset)
 if pd.notna(sunrise) and pd.notna(sunset):
