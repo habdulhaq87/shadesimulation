@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
+import pandas as pd
 import pvlib
 from shapely.geometry import Polygon, Point
 
@@ -26,16 +27,15 @@ building_height = 4   # Meters
 selected_date = st.date_input("Select Date", datetime(2024, 1, 15))
 selected_time = st.time_input("Select Time", datetime.now().time())
 
-# Combine date and time
-selected_datetime = datetime.combine(selected_date, selected_time)
+# Combine date and time into pandas DatetimeIndex with timezone
+selected_datetime = pd.DatetimeIndex([datetime.combine(selected_date, selected_time)]).tz_localize(timezone)
 
 # Calculate solar position
 solpos = pvlib.solarposition.get_solarposition(
     time=selected_datetime,
     latitude=latitude,
     longitude=longitude,
-    altitude=elevation,
-    tz=timezone
+    altitude=elevation
 )
 
 # Get solar altitude and azimuth
@@ -69,7 +69,26 @@ if solar_altitude > 0:
     # Plot the results
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.plot(*zip(*building_coords), label="Building", color="blue")
-    ax.plot(*zip(*shadow_coords), label="Shadow", color="gray")
+    ax.plot([shadow_coords[0][0], shadow_coords[1][0]],
+            [shadow_coords[0][1], shadow_coords[1][1]],
+            label="Shadow", color="gray")
     ax.fill(*zip(*building_coords), alpha=0.3, color="blue")
     ax.annotate("Building", xy=(1, 1), color="blue")
-    ax.annotate("Shadow", xy=(shadow_dx/2, showdow))
+    ax.annotate("Shadow", xy=(shadow_dx / 2, shadow_dy / 2), color="gray")
+
+    # Set axis limits
+    ax.set_xlim(-50, 50)
+    ax.set_ylim(-50, 50)
+    ax.set_xlabel("X (meters)")
+    ax.set_ylabel("Y (meters)")
+    ax.set_title("Shading Simulation")
+    ax.legend()
+    ax.grid(True)
+    
+    st.pyplot(fig)
+else:
+    st.warning("The sun is below the horizon. No shadow is visible.")
+
+# Footer
+st.write("---")
+st.caption("Developed by Hawkar Abdulhaq")
