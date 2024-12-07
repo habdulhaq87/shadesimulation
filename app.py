@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from datetime import datetime
 import pandas as pd
 import pvlib
@@ -10,7 +11,7 @@ from pvlib.location import Location
 st.set_page_config(page_title="Building Shade Simulator", layout="wide")
 
 # Title
-st.title("Building Shade Simulation")
+st.title("Building Shade Simulation (3D)")
 st.subheader("Location: Iraq Kurdistan, Winter Season")
 
 # User input
@@ -84,35 +85,59 @@ if solar_altitude > 0:
     shadow_dx = shadow_length * np.sin(np.radians(shadow_direction))
     shadow_dy = shadow_length * np.cos(np.radians(shadow_direction))
     
-    # Building and shadow coordinates
-    building_coords = [
-        (0, 0), (building_length, 0),
-        (building_length, building_width), (0, building_width), (0, 0)
-    ]
-    shadow_coords = [
-        (building_length / 2, building_width / 2),
-        (building_length / 2 + shadow_dx, building_width / 2 + shadow_dy)
+    # Building coordinates
+    building_vertices = [
+        [0, 0, 0], [building_length, 0, 0], [building_length, building_width, 0], [0, building_width, 0],  # Base
+        [0, 0, building_height], [building_length, 0, building_height],
+        [building_length, building_width, building_height], [0, building_width, building_height]  # Top
     ]
 
-    # Plot the results
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(*zip(*building_coords), label="Building", color="blue")
-    ax.plot([shadow_coords[0][0], shadow_coords[1][0]],
-            [shadow_coords[0][1], shadow_coords[1][1]],
-            label="Shadow", color="gray")
-    ax.fill(*zip(*building_coords), alpha=0.3, color="blue")
-    ax.annotate("Building", xy=(1, 1), color="blue")
-    ax.annotate("Shadow", xy=(shadow_dx / 2, shadow_dy / 2), color="gray")
+    # Shadow coordinates on the ground
+    shadow_vertices = [
+        [building_length / 2, building_width / 2, 0],
+        [building_length / 2 + shadow_dx, building_width / 2 + shadow_dy, 0]
+    ]
 
-    # Set axis limits
-    ax.set_xlim(-50, 50)
-    ax.set_ylim(-50, 50)
+    # Plot the results in 3D
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot building
+    for i in range(4):  # Connect base to top
+        ax.plot(
+            [building_vertices[i][0], building_vertices[i + 4][0]],
+            [building_vertices[i][1], building_vertices[i + 4][1]],
+            [building_vertices[i][2], building_vertices[i + 4][2]],
+            color='blue'
+        )
+    ax.plot(
+        [building_vertices[0][0], building_vertices[1][0], building_vertices[2][0], building_vertices[3][0], building_vertices[0][0]],
+        [building_vertices[0][1], building_vertices[1][1], building_vertices[2][1], building_vertices[3][1], building_vertices[0][1]],
+        [building_vertices[0][2], building_vertices[1][2], building_vertices[2][2], building_vertices[3][2], building_vertices[0][2]],
+        color='blue'
+    )  # Base
+    ax.plot(
+        [building_vertices[4][0], building_vertices[5][0], building_vertices[6][0], building_vertices[7][0], building_vertices[4][0]],
+        [building_vertices[4][1], building_vertices[5][1], building_vertices[6][1], building_vertices[7][1], building_vertices[4][1]],
+        [building_vertices[4][2], building_vertices[5][2], building_vertices[6][2], building_vertices[7][2], building_vertices[4][2]],
+        color='blue'
+    )  # Top
+
+    # Plot shadow
+    ax.plot(
+        [shadow_vertices[0][0], shadow_vertices[1][0]],
+        [shadow_vertices[0][1], shadow_vertices[1][1]],
+        [shadow_vertices[0][2], shadow_vertices[1][2]],
+        color='gray',
+        label="Shadow"
+    )
+
+    # Set labels and title
     ax.set_xlabel("X (meters)")
     ax.set_ylabel("Y (meters)")
-    ax.set_title("Shading Simulation")
+    ax.set_zlabel("Z (meters)")
+    ax.set_title("3D Shading Simulation")
     ax.legend()
-    ax.grid(True)
-    
     st.pyplot(fig)
 else:
     st.warning("The sun is below the horizon. No shadow is visible.")
