@@ -74,11 +74,17 @@ st.write(f"**Solar Azimuth**: {solar_azimuth:.2f}°")
 # Load the 3D model
 model_path = "data/waj.obj"
 try:
-    model = trimesh.load(model_path)
+    scene = trimesh.load(model_path)
 
-    # Get model vertices and faces
-    vertices = model.vertices
-    faces = model.faces
+    # If it's a Scene object, extract the first geometry
+    if isinstance(scene, trimesh.Scene):
+        mesh = list(scene.geometry.values())[0]  # Get the first mesh
+    else:
+        mesh = scene  # Assume it's already a mesh
+
+    # Get mesh vertices and faces
+    vertices = mesh.vertices
+    faces = mesh.faces
 
     # Adjust shadow length based on solar altitude
     if solar_altitude > 0:
