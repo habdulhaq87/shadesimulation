@@ -4,3 +4,4 @@ pandas
 pvlib
 trimesh
 plotly
+chardet
