@@ -76,11 +76,15 @@ model_path = "data/waj.obj"
 try:
     scene = trimesh.load(model_path)
 
-    # If it's a Scene object, extract the first geometry
+    # Check if the file is a scene or a single mesh
     if isinstance(scene, trimesh.Scene):
-        mesh = list(scene.geometry.values())[0]  # Get the first mesh
+        if len(scene.geometry) == 0:
+            raise ValueError("The 3D model contains no geometry.")
+        mesh = list(scene.geometry.values())[0]  # Extract the first mesh
+    elif isinstance(scene, trimesh.Trimesh):
+        mesh = scene  # Single mesh loaded
     else:
-        mesh = scene  # Assume it's already a mesh
+        raise ValueError("Unsupported 3D model format.")
 
     # Get mesh vertices and faces
     vertices = mesh.vertices
